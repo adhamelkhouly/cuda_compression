@@ -4,6 +4,7 @@
 #include<ctype.h>
 #include <unistd.h>
 #include "shell.h"
+#include "sequential/rlc.h"
 
 // Prints command list and their descriptions
 void help() {
@@ -61,6 +62,12 @@ int interpreter(char *words[]) {
         else
             errCode = 8;
     }
+    else if (strcmp(words[0], "srlc") == 0){
+        if (words[1] != NULL)
+            rlc(words[1]);
+        else
+            errCode = 8;
+    }
     else if (strcmp(words[0], "help") == 0) {
         if (words[1] != NULL && words[1][0] != '\0')
             errCode = 6;
@@ -74,6 +81,7 @@ int interpreter(char *words[]) {
         quit();
         
     }
+    
     else {
         errCode = 1;
     }
