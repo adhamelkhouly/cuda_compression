@@ -23,12 +23,40 @@ void display(char *input, int size) {
 	printf("\n");
 }
 
-// checks if target is substring of {src[l], ..., src[r]}
-int substr(char *haystack, char *needle) {
-	if(strstr(haystack, needle) != NULL) {
-		return 1;
+// substrIndexReversed checks if a needle is in a haystack and returns the index of the first matching character, -1 if there is no match
+// it checks the string in reverse
+int substrIndexReversed(char *haystack, char *needle, int haystackSize) {
+	printf("totalHaystackLength = %d\n", haystackSize);
+
+	for (int sizeOfTemp=1; sizeOfTemp <= haystackSize; sizeOfTemp++) {
+		  // malloc a temporary string and copy values from the haystack in reverse
+		char *tempHaystack = (char*)malloc(sizeOfTemp * sizeof(char));
+		int haystackIndex;
+		for(int j=0; j < sizeOfTemp; j++) {
+			haystackIndex = haystackSize - sizeOfTemp + j;
+			tempHaystack[j] = haystack[haystackIndex];
+		}
+		display(tempHaystack, sizeOfTemp);
+		 // check if the needle is in the temp haystack, if so return it's index
+		if (strstr(tempHaystack, needle) != NULL) {
+			return haystackIndex;
+		}
 	}
-	return 0;
+
+	return -1;
+}
+
+int substrLastIdx(char *haystack, char *needle, int haystackSize) {
+	char *src;
+	char *dst;
+
+	int itr = 1;
+	while(itr < haystackSize) {
+		src = (char*)malloc(itr * sizeof(char));
+		memcpy(&src[0], &haystack[haystackSize - itr], itr * sizeof(char));
+		display(src, itr);
+		itr++;
+	}
 }
 
 // TODO: in-place
@@ -51,16 +79,37 @@ void encode(char *text, int size, int window_size) {
 		// next set of elements to encode
 		encode = (char*)malloc((++shift_size) * sizeof(char));
 		memcpy(&encode[0], &text[encodeIdx], shift_size * sizeof(char));
-		while(substr(window, encode)) {
+		while(substrIndexReversed(window, encode, window_size) != -1) {
 			encode = (char*)realloc(encode, (++shift_size) * sizeof(char));
 			memcpy(&encode[0], &text[encodeIdx], shift_size * sizeof(char));
 		}
 		shift_size--;
-		//look-ahead shit
+		//if shift_size == 0 -->no match
 		if (shift_size == 0) shift_size++;
+
+		// final char(s) to encode
+		char *dst = (char*)malloc(shift_size * sizeof(char));
+		memcpy(&dst[0], &text[encodeIdx], shift_size * sizeof(char));
+		int subStringIndex =  substrIndexReversed(window, dst, window_size);
+		printf("subStringIndex = %d\n", subStringIndex);
+
+		 // Lookahead function
+		// int buffer_size = 0;
+		// char *lookaheadBuffer = (char*)malloc((++buffer_size) * sizeof(char));
+		// while(/* lookahead possible - i.e I can add the next element to the lookahead buffer */) {
+		// 	if(/* at the end of the string */) {
+		// 		lookaheadBuffer = (char*)realloc(lookaheadBuffer, (++buffer_size) * sizeof(char));
+		// 		memcpy(&lookaheadBuffer[0], &text[encodeIdx + shift_size], buffer_size * sizeof(char));
+		// 	}
+
+
+		// }
+		// buffer_size--;
+
+		// shift_size += buffer_size;
+
 		printf("encode: \n");
 		display(encode, shift_size);
-		
 		//shift window by shift_size
 		windowIdx += shift_size;
 		if(windowIdx >= size) {
