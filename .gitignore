@@ -415,3 +415,5 @@ MigrationBackup/
 
 */.vscode/*
 *.stackdump
+
+*.txt
