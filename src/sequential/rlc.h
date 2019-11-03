@@ -4,4 +4,4 @@
 
 #define MAX_RLEN 50 
 
-char* encode(char* input_filename);
+char* rlc(char* input_file);

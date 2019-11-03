@@ -1,8 +1,10 @@
 #include "rlc.h"
-
+#include "../file_manipulation.h"
 
 char* rlc(char* input_file) 
 { 
+    input_file = read_file(input_file);
+    
     int rLen; 
     char count[MAX_RLEN]; 
     int len = strlen(input_file); 
@@ -35,5 +37,10 @@ char* rlc(char* input_file)
   
     /*terminate the destination string */
     dest[j] = '\0'; 
+
+    for (int i = 0; i < j; i++){
+        printf("%c", dest[i]);
+    }
+
     return dest; 
 } 
