@@ -20,10 +20,51 @@ char* read_file(char *fileName) {
     }
 
     code[n] = '\0';        
-    
-    for (int i = 0; i < f_size; i++) {
-        printf("%c", code[i]);
-    }
 
     return code;
+}
+
+int write_file(char *file_name, char* output_str) {
+   FILE *file_address;
+   file_address = fopen(file_name, "w");
+   int i;
+   int len = strlen(output_str);
+
+   if (file_address != NULL) {
+	for (i = 0; i < len; i++) {
+	   fputc (output_str[i], file_address);
+       /* Add a new line every 100 characters*/
+       if (i > 0 && (i % 100) == 0){
+           fputc ('\n', file_address);
+       }    
+	}
+
+	printf("File written successfully!\n");
+	fclose(file_address);		
+   }
+   else {
+  	  return 8;
+   }
+   return 0;
+}
+
+int generate_file(int size) {
+  srand(time(0)); 
+  FILE *fptr = fopen("test.txt", "w"); 
+
+  int lower, upper;
+
+  // ASCII lower and upper limits
+  lower = 33;
+  upper = 126;
+
+  for (int i = 0; i < 1024 ; i++) {
+    fprintf(fptr,"%c", rand() % (upper - lower + 1) + lower); 
+     if (i > 0 && (i % 100) == 0){
+           fputc ('\n', fptr);
+       }  
+  }
+
+  fclose(fptr);
+  return 0;
 }

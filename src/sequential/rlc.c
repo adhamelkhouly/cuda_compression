@@ -1,13 +1,10 @@
 #include "rlc.h"
-#include "../file_manipulation.h"
 
-char* rlc(char* input_file) 
-{ 
-    input_file = read_file(input_file);
-    
-    int rLen; 
+char* rlc(char* input_str) 
+{     
+    int run_length; 
     char count[MAX_RLEN]; 
-    int len = strlen(input_file); 
+    int len = strlen(input_str); 
   
     char* dest = (char*)malloc(sizeof(char) * (len * 2 + 1)); 
   
@@ -16,31 +13,26 @@ char* rlc(char* input_file)
     // Traverse the input 
     for (i = 0; i < len; i++) { 
   
-        /* Copy the first occurrence of the new character */
-        dest[j++] = input_file[i]; 
+        // Copy the first occurrence of the new character 
+        dest[j++] = input_str[i]; 
   
-        /* Count the number of occurrences of the new character */
-        rLen = 1; 
-        while (i + 1 < len && input_file[i] == input_file[i + 1]) { 
-            rLen++; 
+        // Count the number of occurrences of the new character
+        run_length = 1; 
+        while (i + 1 < len && input_str[i] == input_str[i + 1]) { 
+            run_length++; 
             i++; 
         } 
+
+        // Copy Run length to a count[]
+        sprintf(count, "%d", run_length); 
   
-        /* Store rLen in a character array count[] */
-        sprintf(count, "%d", rLen); 
-  
-        /* Copy the count[] to destination */
         for (k = 0; *(count + k); k++, j++) { 
             dest[j] = count[k]; 
         } 
     } 
   
-    /*terminate the destination string */
+    // Terminate string
     dest[j] = '\0'; 
-
-    for (int i = 0; i < j; i++){
-        printf("%c", dest[i]);
-    }
 
     return dest; 
 } 

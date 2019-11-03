@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include "shell.h"
 #include "sequential/rlc.h"
+#include "file_manipulation.h"
 
 // Prints command list and their descriptions
 void help() {
@@ -52,6 +53,8 @@ int run(char *words[]) {
 
 int interpreter(char *words[]) { 
     int errCode = 0;
+    char* encoded;
+    char* input_str;
 
     if (words[0] == NULL) // To catch users pressing enter
         return 0;
@@ -63,8 +66,19 @@ int interpreter(char *words[]) {
             errCode = 8;
     }
     else if (strcmp(words[0], "srlc") == 0){
-        if (words[1] != NULL)
-            rlc(words[1]);
+        if (words[1] != NULL) {
+            input_str = read_file(words[1]);
+            encoded = rlc(input_str);
+            errCode = write_file(words[2], encoded);
+        }
+        else
+            errCode = 8;
+    }
+    else if (strcmp(words[0], "genfile") == 0){
+        if (words[1] != NULL) {
+            int x;
+            generate_file(sscanf(words[1], "%d", &x));
+        }
         else
             errCode = 8;
     }
