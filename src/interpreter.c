@@ -49,8 +49,6 @@ int run(char *words[]) {
     return 0;
 }
 
-// Function similar to the one in lecture slides, but
-// was modified for this assignment
 int interpreter(char *words[]) { 
     int errCode = 0;
 
