@@ -8,19 +8,20 @@
 #include <sys/stat.h>
 
 /* -------- aux stuff ---------- */
+//Pass in item_size in bytes and how many items to allocate on the heap
 void* mem_alloc(size_t item_size, size_t n_item)
 {
 	size_t* x = calloc(1, sizeof(size_t) * 2 + n_item * item_size);
-	x[0] = item_size;
+	x[0] = item_size; //in bytes
 	x[1] = n_item;
-	return x + 2;
+	return x + 2; //return pointer starting at data
 }
 
 void* mem_extend(void* m, size_t new_n)
 {
-	size_t* x = (size_t*)m - 2;
-	x = realloc(x, sizeof(size_t) * 2 + *x * new_n);
-	if (new_n > x[1])
+	size_t* x = (size_t*)m - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+	x = realloc(x, sizeof(size_t) * 2 + *x * new_n); //
+	if (new_n > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
 		memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (new_n - x[1]));
 	x[1] = new_n;
 	return x + 2;
@@ -95,16 +96,23 @@ byte* lzw_encode(byte* in, int max_bits)
 	//write_bits(M_CLR);
 	for (code = *(in++); --len; ) {
 		c = *(in++);
-		if ((nc = d[code].next[c]))
+		if ((nc = d[code].next[c])) //if nc is not equal to 0 after assignment then enter if statment
 			code = nc;
 		else {
 			///
-			tmp = (tmp << bits) | code;
+			tmp = (tmp << bits) | code; //shifting tmp 9 bits to the left (multiplying 2^9) then or with code (an ascii variable or new added one e.x code of 'ab')
 			o_bits += bits;
-			if (_len(out) <= out_len) _extend(out);
-			while (o_bits >= 8) {
+			if (_len(out) <= out_len) _extend(out); //extend by doubling size
+			while (o_bits >= 8) { 	//checks for how many bytes it can write out of the bits given
 				o_bits -= 8;
-				out[out_len++] = tmp >> o_bits;
+				
+				//shifting o_bits to the right, shifting to the right means dividing by 2^(o_bits)
+				//eleminating the leftover bits on the right to write one byte to the ouput
+				out[out_len++] = tmp >> o_bits; 
+
+				//shift 1 to the left by o_bits, basically multiplying 1 by 2^(o_bits) ... then mask this value-1 on tmp
+				//saving the leftover bits on the right from the previous line for the next iteration
+				//e.x 1110 1110 11, tmp will be the 11 at the right
 				tmp &= (1 << o_bits) - 1;
 			}
 			///
@@ -310,7 +318,7 @@ int main()
 	printf("input size:   %d\n", _len(in));
 
 	byte* enc = lzw_encode(in, 9);
-	printf("encoded size: %d\n", _len(enc));
+ 	printf("encoded size: %d\n", _len(enc));
 
 	byte* dec = lzw_decode(enc);
 	printf("decoded size: %d\n", _len(dec));
