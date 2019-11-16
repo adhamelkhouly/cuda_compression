@@ -12,11 +12,19 @@ __global__ void lz_encode_with_ascii_kernel(int num_of_threads, int threads_per_
 
 	int bits = 9, next_shift = 512;
 	uint16_t code, c, nc, next_code = M_NEW;
+	size_t out_segment_size = sizeof(size_t) * 2 + 4 * sizeof(uint16_t);
 
 	if (max_bits > 15) max_bits = 15;
 	if (max_bits < 9) max_bits = 12;
 
-	out[segment_num] = (uint8_t*)gpu_mem_alloc(sizeof(uint16_t), 4);
+	//size_t* y = new uint16_t[]
+
+	size_t* y = (size_t*)malloc(sizeof(size_t) * 2 + 4 * sizeof(uint16_t));
+	y[0] = sizeof(uint16_t);
+	y[1] = 4;
+	out[segment_num] = (uint8_t*)(y + 2);
+
+	//out[segment_num] = (uint8_t*)gpu_mem_alloc(sizeof(uint16_t), 4);
 	int out_len = 0, o_bits = 0;
 	uint32_t tmp = 0;
 
@@ -28,13 +36,24 @@ __global__ void lz_encode_with_ascii_kernel(int num_of_threads, int threads_per_
 			///
 			tmp = (tmp << bits) | code; //shifting tmp 9 bits to the left (multiplying 2^9) then or with code (an ascii variable or new added one e.x code of 'ab')
 			o_bits += bits;
-			if (_len(out[segment_num]) <= out_len) _extend(out[segment_num]); //extend by doubling size
+			if (_len(out[segment_num]) <= out_len) {
+				size_t new_n = _len(out[segment_num]) * 2;
+				size_t* z = (size_t*)(out[segment_num] - 2); //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+				cudaError_t cudaStatus = cudaMalloc((void**)& z, sizeof(size_t) * 2 + *z * new_n); //
+				if (new_n > z[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
+					memset((char*)(z + 2) + z[0] * z[1], 0, z[0] * (new_n - z[1]));
+				z[1] = new_n;
+				out[segment_num] = (uint8_t*)(z + 2);
+
+				//out[segment_num] = (uint8_t*)gpu_mem_extend(out[segment_num], _len(out[segment_num]) * 2); //extend by doubling size
+			}
 			while (o_bits >= 8) { 	//checks for how many bytes it can write out of the bits given
 				o_bits -= 8;
 
 				//shifting o_bits to the right, shifting to the right means dividing by 2^(o_bits)
 				//eleminating the leftover bits on the right to write one byte to the ouput
 				out[segment_num][out_len++] = tmp >> o_bits;
+				//printf("%i" , out[segment_num][out_len-1]);
 
 				//shift 1 to the left by o_bits, basically multiplying 1 by 2^(o_bits) ... then mask this value-1 on tmp
 				//saving the leftover bits on the right from the previous line for the next iteration
@@ -42,28 +61,33 @@ __global__ void lz_encode_with_ascii_kernel(int num_of_threads, int threads_per_
 				tmp &= (1 << o_bits) - 1;
 			}
 			///
-			nc = d[code].next[c] = next_code++;
+			nc = dict[code].next[c] = next_code++;
 			code = c;
 		}
-}
-//
-//__global__ void helllo(void* mapl) {
-//	__shared__ map<string, int>* maptest;
-//	maptest->at("a");
-//}
-
-__global__ void* gpu_mem_alloc(size_t item_type, size_t n_item) {
-	size_t* x = nullptr;
-	cudaError_t cudaStatus = cudaMalloc((void**)& x, sizeof(size_t) * 2 + n_item * sizeof(item_type));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		return;
 	}
-	x[0] = sizeof(item_type);
-	x[1] = n_item;
-	return x+2;
 }
 
+//__global__ void* gpu_mem_alloc(size_t item_type, size_t n_item) {
+//	size_t* x = nullptr;
+//	cudaError_t cudaStatus = cudaMalloc((void**)& x, sizeof(size_t) * 2 + n_item * sizeof(item_type));
+//	if (cudaStatus != cudaSuccess) {
+//		fprintf(stderr, "cudaMalloc failed!");
+//		return;
+//	}
+//	x[0] = sizeof(item_type);
+//	x[1] = n_item;
+//	return x+2;
+//}
+//
+//__global__ void* gpu_mem_extend(void* m, size_t new_n)
+//{
+//	size_t* x = (size_t*)m - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+//	cudaError_t cudaStatus = cudaMalloc((void**)& x, sizeof(size_t) * 2 + *x * new_n); //
+//	if (new_n > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
+//		cudaMemset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (new_n - x[1]));
+//	x[1] = new_n;
+//	return x + 2;
+//}
 
 /*******************Helper Functions***************************/
 //Pass in item_size in bytes and how many items to allocate on the heap
@@ -119,6 +143,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in, int numOfThreads)
 {
 	uint8_t* dev_in = 0;
 	uint8_t* dev_final_out[] = { 0 };
+	size_t* x = 0;
 
 	// Choose which GPU to run on, change this on a multi-GPU system.
 	cudaError_t cudaStatus = cudaSetDevice(0);
@@ -133,12 +158,30 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in, int numOfThreads)
 		goto Error;
 	}
 
-	memcpy(dev_in, in, _len(in) * sizeof(unsigned char));
+	cudaMemcpy(dev_in, in, _len(in) * sizeof(unsigned char), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
-	lzw_enc_t* dict = (lzw_enc_t*)gpu_mem_alloc(sizeof(lzw_enc_t), 512);
+	cudaStatus = cudaMallocManaged((void**)& dev_final_out, NUM_OF_THREADS * sizeof(unsigned char));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		goto Error;
+	}
 
-	int numBlocks = ((numOfThreads + (MAX_NUMBER_THREADS_PER_BLOCK - 1)) / MAX_NUMBER_THREADS_PER_BLOCK);
-	int threadsPerBlock = ((numOfThreads + (numBlocks - 1)) / numBlocks);
+	cudaStatus = cudaMallocManaged((void**)& x, sizeof(size_t) * 2 + 512 * sizeof(lzw_enc_t));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMalloc failed!");
+		goto Error;
+	}
+
+	x[0] = sizeof(lzw_enc_t);
+	x[1] = 512;
+	
+	lzw_enc_t* dict = (lzw_enc_t*)(x+2);
+
+	//size_t heapsize = sizeof(int) * size_t(20000) * size_t(2 * 10000);
+	//cudaDeviceSetLimit(cudaLimitMallocHeapSize, heapsize);
+
+	int numBlocks = ((NUM_OF_THREADS + (MAX_NUMBER_THREADS_PER_BLOCK - 1)) / MAX_NUMBER_THREADS_PER_BLOCK);
+	int threadsPerBlock = ((NUM_OF_THREADS + (numBlocks - 1)) / numBlocks);
 	/*************************************** Parrallel Part of Execution **********************************************/
 	//gpuTimer.Start();
 	lz_encode_with_ascii_kernel << <numBlocks, threadsPerBlock >> > (numOfThreads, threadsPerBlock, dev_in, dev_final_out, dict, _len(in), 9);
@@ -163,7 +206,8 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in, int numOfThreads)
 
 Error:
 	// BE FREE MY LOVLIES
-	cudaFree(dev_fileArray);
+	cudaFree(dev_in);
+	cudaFree(dev_final_out);
 
 	return cudaStatus;
 }

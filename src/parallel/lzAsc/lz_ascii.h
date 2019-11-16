@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 
 #define MAX_NUMBER_THREADS_PER_BLOCK 1024
 #define NUM_OF_THREADS 32
@@ -45,4 +46,5 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in, int numOfThreads);
 
 
 __global__ void lz_encode_with_ascii_kernel(int num_of_threads, int threads_per_block, uint8_t* dev_in, uint8_t* out[], lzw_enc_t* dict, size_t size, int max_bits);
-__global__ void* gpu_mem_alloc(size_t item_type, size_t n_item);
+//__global__ void* gpu_mem_alloc(size_t item_type, size_t n_item);
+//__global__ void* gpu_mem_extend(void* m, size_t new_n);
