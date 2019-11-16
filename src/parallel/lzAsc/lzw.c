@@ -310,9 +310,9 @@ int main()
 	struct stat st;
 	fstat(fd, &st);
 
-	byte* in = _new(char, st.st_size);
+	byte* in = _new(unsigned char, st.st_size);
 	read(fd, in, st.st_size);
-	_setsize(in, st.st_size);
+	//_setsize(in, st.st_size);
 	close(fd);
 
 	printf("input size:   %d\n", _len(in));
