@@ -41,6 +41,7 @@ typedef struct {
 void* pc_heap_mem_alloc(size_t item_size, size_t n_item);
 void* pc_heap_mem_extend(void* m, size_t new_n);
 inline void _clear(void* m);
+inline void write_bits_encoder(uint16_t x);
 
 cudaError_t lz_ascii_with_cuda(uint8_t* in, int numOfThreads);
 
