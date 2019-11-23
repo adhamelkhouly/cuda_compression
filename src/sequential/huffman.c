@@ -1,175 +1,124 @@
-//#include "huffman.h"
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <string.h> 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#define BYTES 256
- 
-struct huffcode {
-  int nbits;
-  int code;
-};
-typedef struct huffcode huffcode_t;
- 
-struct huffheap {
-  int *h;
-  int n, s, cs;
-  long *f;
-};
-typedef struct huffheap heap_t;
- 
-/* heap handling funcs */
-static heap_t *_heap_create(int s, long *f)
+typedef struct node_t {
+	struct node_t *left, *right;
+	int freq;
+	char c;
+} *node;
+
+struct node_t pool[256] = {{0}};
+node qqq[255], *q = qqq - 1;
+int n_nodes = 0, qend = 1;
+char *code[128] = {0}, buf[1024];
+
+node new_node(int freq, char c, node a, node b)
 {
-  heap_t *h;
-  h = malloc(sizeof(heap_t));
-  h->h = malloc(sizeof(int)*s);
-  h->s = h->cs = s;
-  h->n = 0;
-  h->f = f;
-  return h;
+	node n = pool + n_nodes++;
+	if (freq) n->c = c, n->freq = freq;
+	else {
+		n->left = a, n->right = b;
+		n->freq = a->freq + b->freq;
+	}
+	return n;
 }
- 
-static void _heap_destroy(heap_t *heap)
+
+/* priority queue */
+void qinsert(node n)
 {
-  free(heap->h);
-  free(heap);
+	int j, i = qend++;
+	while ((j = i / 2)) {
+		if (q[j]->freq <= n->freq) break;
+		q[i] = q[j], i = j;
+	}
+	q[i] = n;
 }
- 
-#define swap_(I,J) do { int t_; t_ = a[(I)];	\
-      a[(I)] = a[(J)]; a[(J)] = t_; } while(0)
-static void _heap_sort(heap_t *heap)
+
+node qremove()
 {
-  int i=1, j=2; /* gnome sort */
-  int *a = heap->h;
- 
-  while(i < heap->n) { /* smaller values are kept at the end */
-    if ( heap->f[a[i-1]] >= heap->f[a[i]] ) {
-      i = j; j++;
-    } else {
-      swap_(i-1, i);
-      i--;
-      i = (i==0) ? j++ : i;
-    }
-  }
+	int i, l;
+	node n = q[i = 1];
+
+	if (qend < 2) return 0;
+	qend--;
+	while ((l = i * 2) < qend) {
+		if (l + 1 < qend && q[l + 1]->freq < q[l]->freq) l++;
+		q[i] = q[l], i = l;
+	}
+	q[i] = q[qend];
+	return n;
 }
-#undef swap_
- 
-static void _heap_add(heap_t *heap, int c)
+
+/* walk the tree and put 0s and 1s */
+void build_code(node n, char *s, int len)
 {
-  if ( (heap->n + 1) > heap->s ) {
-    heap->h = realloc(heap->h, heap->s + heap->cs);
-    heap->s += heap->cs;
-  }
-  heap->h[heap->n] = c;
-  heap->n++;
-  _heap_sort(heap);
+	static char *out = buf;
+	if (n->c) {
+		s[len] = 0;
+		strcpy(out, s);
+		code[n->c] = out;
+		out += len + 1;
+		return;
+	}
+
+	s[len] = '0'; build_code(n->left,  s, len + 1);
+	s[len] = '1'; build_code(n->right, s, len + 1);
 }
- 
-static int _heap_remove(heap_t *heap)
+
+void init(const char *s)
 {
-  if ( heap->n > 0 ) {
-    heap->n--;
-    return heap->h[heap->n];
-  }
-  return -1;
+	int i, freq[128] = {0};
+	char c[16];
+
+	while (*s) freq[(int)*s++]++;
+
+	for (i = 0; i < 128; i++)
+		if (freq[i]) qinsert(new_node(freq[i], i, 0, 0));
+
+	while (qend > 2)
+		qinsert(new_node(0, 0, qremove(), qremove()));
+
+	build_code(q[1], c, 0);
 }
- 
-/* huffmann code generator */
-huffcode_t **create_huffman_codes(long *freqs)
+
+void encode(const char *s, char *out)
 {
-  huffcode_t **codes;
-  heap_t *heap;
-  long efreqs[BYTES*2];
-  int preds[BYTES*2];
-  int i, extf=BYTES;
-  int r1, r2;
- 
-  memcpy(efreqs, freqs, sizeof(long)*BYTES);
-  memset(&efreqs[BYTES], 0, sizeof(long)*BYTES);
- 
-  heap = _heap_create(BYTES*2, efreqs);
-  if ( heap == NULL ) return NULL;
- 
-  for(i=0; i < BYTES; i++) if ( efreqs[i] > 0 ) _heap_add(heap, i);
- 
-  while( heap->n > 1 )
-  {
-    r1 = _heap_remove(heap);
-    r2 = _heap_remove(heap);
-    efreqs[extf] = efreqs[r1] + efreqs[r2];
-    _heap_add(heap, extf);
-    preds[r1] = extf;
-    preds[r2] = -extf;
-    extf++;
-  }
-  r1 = _heap_remove(heap);
-  preds[r1] = r1;
-  _heap_destroy(heap);
- 
-  codes = malloc(sizeof(huffcode_t *)*BYTES);
- 
-  int bc, bn, ix;
-  for(i=0; i < BYTES; i++) {
-    bc=0; bn=0;
-    if ( efreqs[i] == 0 ) { codes[i] = NULL; continue; }
-    ix = i;
-    while( abs(preds[ix]) != ix ) {
-      bc |= ((preds[ix] >= 0) ? 1 : 0 ) << bn;
-      ix = abs(preds[ix]);
-      bn++;
-    }
-    codes[i] = malloc(sizeof(huffcode_t));
-    codes[i]->nbits = bn;
-    codes[i]->code = bc;
-  }
-  return codes;
+	while (*s) {
+		strcpy(out, code[*s]);
+		out += strlen(code[*s++]);
+	}
 }
- 
-void free_huffman_codes(huffcode_t **c)
+
+void decode(const char *s, node t)
 {
-  int i;
- 
-  for(i=0; i < BYTES; i++) free(c[i]);
-  free(c);
+	node n = t;
+	while (*s) {
+		if (*s++ == '0') n = n->left;
+		else n = n->right;
+
+		if (n->c) putchar(n->c), n = t;
+	}
+
+	putchar('\n');
+	if (t != n) printf("garbage input\n");
 }
- 
-#define MAXBITSPERCODE 100
- 
-void inttobits(int c, int n, char *s)
+
+int main(void)
 {
-  s[n] = 0;
-  while(n > 0) {
-    s[n-1] = (c%2) + '0';
-    c >>= 1; n--;
-  }
-}
- 
-const char *test = "this is an example for huffman encoding";
- 
-int main()
-{
-  huffcode_t **r;
-  int i;
-  char strbit[MAXBITSPERCODE];
-  const char *p;
-  long freqs[BYTES];
- 
-  memset(freqs, 0, sizeof freqs);
- 
-  p = test;
-  while(*p != '\0') freqs[*p++]++;
- 
-  r = create_huffman_codes(freqs);
- 
-  for(i=0; i < BYTES; i++) {
-    if ( r[i] != NULL ) {
-      inttobits(r[i]->code, r[i]->nbits, strbit);
-      printf("%c (%d) %s\n", i, r[i]->code, strbit);
-    }
-  }
- 
-  free_huffman_codes(r);
- 
-  return 0;
+	int i;
+	const char *str = "this is an example for huffman encoding";
+    char buf[1024];
+
+	init(str);
+	for (i = 0; i < 128; i++)
+		if (code[i]) printf("'%c': %s\n", i, code[i]);
+
+	encode(str, buf);
+	printf("encoded: %s\n", buf);
+
+	printf("decoded: ");
+	decode(buf, q[1]);
+
+	return 0;
 }
