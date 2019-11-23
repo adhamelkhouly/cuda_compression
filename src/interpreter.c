@@ -70,6 +70,7 @@ int interpreter(char *words[]) {
             input_str = read_file(words[1]);
             encoded = rlc(input_str);
             errCode = write_file(words[2], encoded);
+            compare_file_size(words[1], words[2]);
         }
         else
             errCode = 8;

@@ -1,5 +1,6 @@
 #include "file_manipulation.h"
 
+
 char* read_file(char *fileName) {
     FILE *file = fopen(fileName, "r");
     char *code;
@@ -67,4 +68,23 @@ int generate_file(int size) {
 
   fclose(fptr);
   return 0;
+}
+
+void compare_file_size(char* file1, char* file2) {
+    FILE *fp;
+    off_t size;
+    int fd;
+    struct stat buf;
+
+    fp = fopen(file1, "r");
+    fd = fileno(fp);
+    fstat(fd, &buf);
+    size = buf.st_size;
+    printf("Original File Size: %ld Kilobytes\n", (long)size/1000);
+
+    fp = fopen(file2, "r");
+    fd = fileno(fp);
+    fstat(fd, &buf);
+    size = buf.st_size;
+    printf("Compressed File Size: %ld Kilobytes\n", (long)size/1000);
 }
