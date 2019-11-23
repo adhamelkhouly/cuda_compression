@@ -64,64 +64,64 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 				//e.x 1110 1110 11, tmp will be the 11 at the right
 				tmp &= (1 << o_bits) - 1;
 			}
-			//_Acquires_exclusive_lock_();
+			_Acquires_exclusive_lock_();
 			nc = dict[code].next[c] = next_code++;
-			//_Releases_exclusive_lock_();
+			_Releases_exclusive_lock_();
 			code = c;
 		}
 
-		//if (next_code == next_shift) {
-		//	/* either reset table back to 9 bits */
-		//	if (++bits > max_bits) {
-		//		/* table clear marker must occur before bit reset */
-		//		tmp = (tmp << bits) | M_CLR; //shifting tmp 9 bits to the left and adding code to the right bits
-		//		o_bits += bits;
-		//		if (size_per_thread_const <= out_len) {
-		//			//TODO: Could be done better to accomodate for extra space per block ... adding 64 bytes per section for example
-		//			printf("\nEncoding using more momery in this block ... Exiting\n");
-		//			return;
-		//			//size_t new_n = _len(out[segment_num]) * 2;
-		//			//size_t* z = (size_t*)(out[segment_num] - 2); //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
-		//			//cudaError_t cudaStatus = cudaMalloc((void**)& z, sizeof(size_t) * 2 + *z * new_n); //
-		//			//if (new_n > z[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
-		//			//	memset((char*)(z + 2) + z[0] * z[1], 0, z[0] * (new_n - z[1]));
-		//			//z[1] = new_n;
-		//			//out[segment_num] = (uint8_t*)(z + 2);
-		//			//out[segment_num] = (uint8_t*)gpu_mem_extend(out[segment_num], _len(out[segment_num]) * 2); //extend by doubling size
-		//		}
-		//		while (o_bits >= 8) { 	//checks for how many bytes it can write out of the bits given
-		//			o_bits -= 8;
-		//			//shifting o_bits to the right, shifting to the right means dividing by 2^(o_bits)
-		//			//eleminating the leftover bits on the right to write one byte to the ouput
-		//			out[(segment_num * size_per_thread_const) + out_len] = tmp >> o_bits;
-		//			out_len++;
-		//			//shift 1 to the left by o_bits, basically multiplying 1 by 2^(o_bits) ... then mask this value-1 on tmp
-		//			//saving the leftover bits on the right from the previous line for the next iteration
-		//			//e.x 1110 1110 11, tmp will be the 11 at the right
-		//			tmp &= (1 << o_bits) - 1;
-		//		}
+		if (next_code == next_shift) {
+			/* either reset table back to 9 bits */
+			if (++bits > max_bits) {
+				/* table clear marker must occur before bit reset */
+				tmp = (tmp << bits) | M_CLR; //shifting tmp 9 bits to the left and adding code to the right bits
+				o_bits += bits;
+				if (size_per_thread_const <= out_len) {
+					//TODO: Could be done better to accomodate for extra space per block ... adding 64 bytes per section for example
+					printf("\nEncoding using more momery in this block ... Exiting\n");
+					return;
+					//size_t new_n = _len(out[segment_num]) * 2;
+					//size_t* z = (size_t*)(out[segment_num] - 2); //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+					//cudaError_t cudaStatus = cudaMalloc((void**)& z, sizeof(size_t) * 2 + *z * new_n); //
+					//if (new_n > z[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
+					//	memset((char*)(z + 2) + z[0] * z[1], 0, z[0] * (new_n - z[1]));
+					//z[1] = new_n;
+					//out[segment_num] = (uint8_t*)(z + 2);
+					//out[segment_num] = (uint8_t*)gpu_mem_extend(out[segment_num], _len(out[segment_num]) * 2); //extend by doubling size
+				}
+				while (o_bits >= 8) { 	//checks for how many bytes it can write out of the bits given
+					o_bits -= 8;
+					//shifting o_bits to the right, shifting to the right means dividing by 2^(o_bits)
+					//eleminating the leftover bits on the right to write one byte to the ouput
+					out[(segment_num * size_per_thread_const) + out_len] = tmp >> o_bits;
+					out_len++;
+					//shift 1 to the left by o_bits, basically multiplying 1 by 2^(o_bits) ... then mask this value-1 on tmp
+					//saving the leftover bits on the right from the previous line for the next iteration
+					//e.x 1110 1110 11, tmp will be the 11 at the right
+					tmp &= (1 << o_bits) - 1;
+				}
 
-		//		bits = 9;
-		//		next_shift = 512;
-		//		next_code = M_NEW;
-		//		size_t* x = (size_t*)dict - 2;
-		//		memset(dict, 0, x[0] * x[1]);
-		//		//_clear(dict);
-		//	}
-		//	else  /* or extend table */
-		//	{
-		//		//next_shift *= 2;
-		//		size_t* x = (size_t*)dict - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
-		//		size_t* y = (size_t*)(&dict[x[0] * x[1]]);
-		//		y = (size_t*)malloc(*x * next_shift); //
-		//		next_shift *= 2;
-		//		if (next_shift > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
-		//			memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (next_shift - x[1]));
-		//		x[1] = next_shift;
-		//		dict = (lzw_enc_t*)x + 2;
-		//	}
-		//		//_setsize(dict, next_shift *= 2);
-		//}
+				bits = 9;
+				next_shift = 512;
+				next_code = M_NEW;
+				size_t* x = (size_t*)dict - 2;
+				memset(dict, 0, x[0] * x[1]);
+				//_clear(dict);
+			}
+			else  /* or extend table */
+			{
+				//next_shift *= 2;
+				size_t* x = (size_t*)dict - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+				size_t* y = (size_t*)(&dict[x[0] * x[1]]);
+				y = (size_t*)malloc(*x * next_shift); //
+				next_shift *= 2;
+				if (next_shift > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
+					memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (next_shift - x[1]));
+				x[1] = next_shift;
+				dict = (lzw_enc_t*)x + 2;
+			}
+				//_setsize(dict, next_shift *= 2);
+		}
 	}
 
 	//write code
