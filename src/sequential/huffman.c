@@ -1,6 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
+#include <stdint.h>
+#include <inttypes.h>
+
+#include "huffman.h"
+
+// #include "../file_manipulation.h"
 
 typedef struct node_t {
 	struct node_t *left, *right;
@@ -104,21 +110,55 @@ void decode(const char *s, node t)
 	if (t != n) printf("garbage input\n");
 }
 
-int main(void)
-{
-	int i;
-	const char *str = "this is an example for huffman encoding";
-    char buf[1024];
+uint8_t* huffman(char* input_str) {
+	int len = strlen(input_str);
+	long maxSize = len*len;
+	printf("maxSize = %ld\n", maxSize);
+	char* dest = (char*)malloc(maxSize * sizeof(char));
+	for(int i = 0; i < maxSize; i++) {
+		dest[i] = '\0';
+	}
+	// char dest[maxSize] = {0};
+	init(input_str);
 
-	init(str);
-	for (i = 0; i < 128; i++)
-		if (code[i]) printf("'%c': %s\n", i, code[i]);
+	encode(input_str, dest);
+	// int i;
+	// for(i = 0; i < maxSize; i++) {
+	// 	if(dest[i] == '\0') break;
+	// }
+	printf("size = %ld bits\n", strlen(dest));
+	printf("size = %ld bytes\n", strlen(dest)/8);
 
-	encode(str, buf);
-	printf("encoded: %s\n", buf);
+	uint8_t *reps = (char*)malloc(strlen(dest) * sizeof(char));
+	int idx = 0;
+	for(int i = 0; i < strlen(dest); i += 8) {
+		char tmp[8];
+		memcpy(tmp, (dest + i), 8*sizeof(char));
+		uint8_t rep = (uint8_t)strtol(tmp, NULL, 2);
 
-	printf("decoded: ");
-	decode(buf, q[1]);
-
-	return 0;
+		reps[idx] = rep;
+		idx++;
+	}
+	printf("idx = %d\n", idx);
+	return reps;
 }
+
+// int main(void)
+// {
+// 	char * str = read_file("alice29.txt");
+// 	int len = strlen(str);
+// 	// char buf[1024*1024];
+// 	char* buf = (char*)malloc(sizeof(char) * (len * len + 1));
+
+// 	init(str);
+// 	for (int i = 0; i < 128; i++)
+// 		if (code[i]) printf("'%c': %s\n", i, code[i]);
+
+// 	encode(str, buf);
+// 	printf("encoded: %s\n", buf);
+
+// 	// printf("decoded: ");
+// 	// decode(buf, q[1]);
+
+// 	return 0;
+// }
