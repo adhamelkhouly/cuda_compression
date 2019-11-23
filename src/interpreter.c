@@ -1,10 +1,12 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include <stdint.h>
 #include<ctype.h>
 #include <unistd.h>
 #include "shell.h"
 #include "sequential/rlc.h"
+#include "sequential/huffman.h"
 #include "file_manipulation.h"
 
 // Prints command list and their descriptions
@@ -54,6 +56,7 @@ int run(char *words[]) {
 int interpreter(char *words[]) { 
     int errCode = 0;
     char* encoded;
+    uint8_t * h_encoded;
     char* input_str;
 
     if (words[0] == NULL) // To catch users pressing enter
@@ -70,6 +73,16 @@ int interpreter(char *words[]) {
             input_str = read_file(words[1]);
             encoded = rlc(input_str);
             errCode = write_file(words[2], encoded);
+            compare_file_size(words[1], words[2]);
+        }
+        else
+            errCode = 8;
+    }
+    else if (strcmp(words[0], "huff") == 0){
+        if (words[1] != NULL) {
+            input_str = read_file(words[1]);
+            h_encoded = huffman(input_str);
+            errCode = write_file(words[2], h_encoded);
             compare_file_size(words[1], words[2]);
         }
         else
