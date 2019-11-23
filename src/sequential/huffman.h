@@ -2,6 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_RLEN 50
+#define BYTES 256
 
-char* rlc(char* input_file);
+char* huffman(char* input_file);
