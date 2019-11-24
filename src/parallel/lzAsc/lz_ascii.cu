@@ -31,6 +31,9 @@ __device__ void write_bits(uint32_t* tmp, int bits, uint16_t code, int size_per_
 __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, lzw_enc_t* dict, size_t size, int max_bits)
 {
 	//__shared__ int seg_length_gpu[NUM_OF_THREADS];
+	__shared__ uint16_t next_code;
+	next_code = M_NEW;
+	__syncthreads();
 	int size_per_thread_const = (size + (NUM_OF_THREADS - 1)) / NUM_OF_THREADS;
 	int size_per_thread_change = size_per_thread_const;
 	int size_dict_seg = sizeof(size_t) * 2 + 512 * sizeof(lzw_enc_t);
@@ -39,7 +42,8 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 	uint8_t* segment_input_ptr = &dev_in[segment_num * size_per_thread_const];
 
 	int bits = 9, next_shift = 512;
-	uint16_t code, c, nc, next_code = M_NEW;
+	uint16_t code, c, nc;
+	
 
 	if (max_bits > 15) max_bits = 15;
 	if (max_bits < 9) max_bits = 12;
@@ -60,8 +64,10 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 			_Releases_exclusive_lock_();
 			code = c;
 		}
-
+		
+		__syncthreads();
 		if (next_code == next_shift) {
+			
 			/* either reset table back to 9 bits */
 			if (++bits > max_bits) {
 				/* table clear marker must occur before bit reset */
@@ -69,6 +75,7 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 
 				bits = 9;
 				next_shift = 512;
+				__syncthreads();
 				next_code = M_NEW;
 				size_t* x = (size_t*)dict - 2;
 				memset(dict, 0, x[0] * x[1]);
@@ -121,7 +128,7 @@ __global__ void populate(int threads_per_block, size_t size, int* segment_length
 
 int main(int argc, char* argv[])
 {
-	int i, fd = open("alice29.txt", O_RDONLY);
+	int i, fd = open("test.txt", O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "Can't read file\n");
 		return 1;
