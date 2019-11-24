@@ -14,7 +14,7 @@
 #include <time.h>
 
 #define MAX_NUMBER_THREADS_PER_BLOCK 1024
-#define NUM_OF_THREADS 1
+#define NUM_OF_THREADS 512
 
 #define M_CLR 256 /* clear table marker */
 #define M_EOD 257 /* end-of-data marker */
@@ -41,15 +41,33 @@ typedef struct {
 /****************** Function Declarations***********************/
 void* pc_heap_mem_alloc(size_t item_size, size_t n_item);
 void* pc_heap_mem_extend(void* m, size_t new_n);
-inline void _clear(void* m);
-//inline void write_bits_encoder(uint16_t x);
 
 cudaError_t lz_ascii_with_cuda(uint8_t* in);
 
 
 __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, lzw_enc_t* dict, size_t size, int max_bits);
 
-__global__ void populate(int threads_per_block, int* segment_lengths, uint8_t* out, uint8_t* encoded);
+__global__ void populate(int threads_per_block, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded);
 
 //__global__ void* gpu_mem_alloc(size_t item_type, size_t n_item);
 //__global__ void* gpu_mem_extend(void* m, size_t new_n);
+
+/*******************Helper Functions***************************/
+//Pass in item_size in bytes and how many items to allocate on the heap
+void* pc_heap_mem_alloc(size_t item_size, size_t n_item)
+{
+	size_t* x = (size_t*)calloc(1, sizeof(size_t) * 2 + n_item * item_size);
+	x[0] = item_size; //in bytes
+	x[1] = n_item;
+	return x + 2; //return pointer starting at data
+}
+
+void* pc_heap_mem_extend(void* m, size_t new_n)
+{
+	size_t* x = (size_t*)m - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+	x = (size_t*)realloc(x, sizeof(size_t) * 2 + *x * new_n); //
+	if (new_n > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
+		memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (new_n - x[1]));
+	x[1] = new_n;
+	return x + 2;
+}
