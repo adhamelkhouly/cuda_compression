@@ -69,7 +69,7 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 		if (next_code == next_shift) {
 			
 			/* either reset table back to 9 bits */
-			if (++bits > max_bits) {
+			//if (++bits > max_bits) {
 				/* table clear marker must occur before bit reset */
 				write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 1);
 
@@ -79,18 +79,19 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 				next_code = M_NEW;
 				size_t* x = (size_t*)dict - 2;
 				memset(dict, 0, x[0] * x[1]);
-			}
-			else  /* or extend table */
-			{
-				size_t* x = (size_t*)dict - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
-				size_t* y = (size_t*)(&dict[x[0] * x[1]]);
-				//y = (size_t*)malloc(*x * next_shift); //
-				next_shift *= 2;
-				if (next_shift > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
-					memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (next_shift - x[1]));
-				x[1] = next_shift;
-				dict = (lzw_enc_t*)x + 2;
-			}
+				__syncthreads();
+			//}
+			//else  /* or extend table */
+			//{
+			//	size_t* x = (size_t*)dict - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
+			//	size_t* y = (size_t*)(&dict[x[0] * x[1]]);
+			//	//y = (size_t*)malloc(*x * next_shift); //
+			//	next_shift *= 2;
+			//	if (next_shift > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
+			//		memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (next_shift - x[1]));
+			//	x[1] = next_shift;
+			//	dict = (lzw_enc_t*)x + 2;
+			//}
 		}
 	}
 
@@ -108,7 +109,6 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 		//write EOD
 		write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 3);
 	}
-	printf("%d\n", out_len);
 	segment_lengths[segment_num] = out_len;
 	//free(y);
 }
@@ -122,9 +122,6 @@ __global__ void populate(int threads_per_block, size_t size, int* segment_length
 	}
 	memcpy(&encoded[writing_pos], &out[(segment_num * size_per_thread_const)], segment_lengths[segment_num]);
 }
-
-
-
 
 int main(int argc, char* argv[])
 {
@@ -142,7 +139,7 @@ int main(int argc, char* argv[])
 	//_setsize(in, st.st_size);
 	close(fd);
 
-	printf("input size:   %d\n", _len(in));
+	printf("input size: %d\n", _len(in));
 
 	lz_ascii_with_cuda(in);
 
@@ -158,6 +155,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 	uint8_t* encoded = 0;
 	clock_t start_t, end_t;
 
+	start_t = clock();
 	// Choose which GPU to run on, change this on a multi-GPU system.
 	cudaError_t cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
@@ -202,12 +200,11 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 
 	lzw_enc_t* dict = (lzw_enc_t*)(x + 2);
 
-	int numBlocks = ((NUM_OF_THREADS + (MAX_NUMBER_THREADS_PER_BLOCK - 1)) / MAX_NUMBER_THREADS_PER_BLOCK) + 1;
+	int numBlocks = ((NUM_OF_THREADS + (MAX_NUMBER_THREADS_PER_BLOCK - 1)) / MAX_NUMBER_THREADS_PER_BLOCK) +1 ;
 	int threadsPerBlock = ((NUM_OF_THREADS + (numBlocks - 1)) / numBlocks);
 	/*************************************** Parrallel Part of Execution **********************************************/
-	start_t = clock();
 	lz_encode_with_ascii_kernel << <numBlocks, threadsPerBlock >> > (threadsPerBlock, dev_in, segment_lengths, dev_final_out, dict, _len(in), 9);
-	end_t = clock();
+
 	/*****************************************************************************************************************/
 	//printf("-- Number of Threads: %d -- Execution Time (ms): %g \n", numOfThreads, gpuTimer.Elapsed());
 	// Check for any errors launching the kernel
@@ -252,10 +249,12 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 		fprintf(stderr, "returned error code %d after launching !\n", cudaStatus);
 		goto Error;
 	}
-
-	printf("\n time taken: %ld: \n", end_t - start_t);
+	
+	end_t = clock();
+	printf("\n time taken: %d \n",((end_t - start_t)));
 
 	FILE* encodedFile = fopen("encoded_file.txt", "wb");
+	printf("%d", sum);
 	fwrite(encoded, sum, 1, encodedFile);
 
 Error:

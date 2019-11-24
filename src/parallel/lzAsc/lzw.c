@@ -7,6 +7,7 @@
 //#include <sys/types.h>
 //#include <sys/stat.h>
 //
+//
 ///* -------- aux stuff ---------- */
 ////Pass in item_size in bytes and how many items to allocate on the heap
 //void* mem_alloc(size_t item_size, size_t n_item)
@@ -122,7 +123,6 @@
 //
 //		/* next new code would be too long for current table */
 //		if (next_code == next_shift) {
-//			printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 //			/* either reset table back to 9 bits */
 //			if (++bits > max_bits) {
 //				/* table clear marker must occur before bit reset */
@@ -301,13 +301,16 @@
 //
 //int main()
 //{
+//	struct timeb start_t, end_t;
+//
 //	int i, fd = open("test.txt", O_RDONLY);
 //
 //	if (fd == -1) {
 //		fprintf(stderr, "Can't read file\n");
 //		return 1;
 //	};
-//
+//	
+//	ftime(&start_t);
 //	struct stat st;
 //	fstat(fd, &st);
 //
@@ -320,6 +323,9 @@
 //
 //	byte* enc = lzw_encode(in, 9);
 // 	printf("encoded size: %d\n", _len(enc));
+//
+//	ftime(&end_t);
+//	printf("\n time taken: %f \n", (double)(1000.0 * (end_t.time - start_t.time) + (end_t.millitm - start_t.millitm)));
 //
 //	FILE* encodedFile = fopen("encoded_cfile.txt", "wb");
 //	fwrite(enc, _len(enc), 1, encodedFile);
