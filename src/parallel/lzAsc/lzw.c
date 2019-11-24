@@ -301,7 +301,7 @@
 //
 //int main()
 //{
-//	int i, fd = open("alice29.txt", O_RDONLY);
+//	int i, fd = open("test.txt", O_RDONLY);
 //
 //	if (fd == -1) {
 //		fprintf(stderr, "Can't read file\n");
