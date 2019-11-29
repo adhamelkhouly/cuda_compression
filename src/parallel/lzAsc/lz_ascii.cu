@@ -134,7 +134,27 @@ __global__ void populate(int threads_per_block, size_t size, int* segment_length
 
 int main(int argc, char* argv[])
 {
-	int i, fd = open("test.txt", O_RDONLY);
+	char* inputFileName = nullptr;	
+	char* outFileName = nullptr;
+	int num_of_threads = 0;
+
+	if (argc != 3 || argv[1] == NULL || argv[2] == NULL ||
+		argv[1] == "-h" || argv[1] == "--help" || argv[1] == "--h") {
+		cout << "lzAsc.exe <Name of Input File to Compress> < # threads to use>" << endl;
+		return 0;
+	}
+	else {
+		if (argv[1] != NULL) {
+			inputFileName = argv[1];
+		}
+		if (argv[2] != NULL) {
+			num_of_threads = stoi(argv[2]);
+		}
+	}
+
+	outFileName = inputFileName+"_compressed";
+
+	int i, fd = open(inputFileName, O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "Can't read file\n");
 		return 1;
@@ -149,13 +169,14 @@ int main(int argc, char* argv[])
 
 	printf("input size: %d\n", _len(in));
 
-	lz_ascii_with_cuda(in);
+	lz_ascii_with_cuda(in, outFileName, num_of_threads);
 
 	return 0;
 }
 
-cudaError_t lz_ascii_with_cuda(uint8_t* in)
+cudaError_t lz_ascii_with_cuda(uint8_t* in, char* compressedFileName, int num_of_threads)
 {
+	//TODO: change NUM_OF_THREADS to num_of_threads and do necessary changes
 	uint8_t* dev_in = 0;
 	uint8_t* dev_final_out = 0;
 	int* segment_lengths;
@@ -255,7 +276,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 	end_t = clock();
 	printf("\n time taken: %d \n",((end_t - start_t)));
 
-	FILE* encodedFile = fopen("encoded_file.txt", "wb");
+	FILE* encodedFile = fopen(compressedFileName, "wb");
 	printf("%d \n %d", sum, segment_lengths[NUM_OF_THREADS - 1]);
 	//to write the last compressed segment only or any segment of choice
 	int writing_pos = 0;
