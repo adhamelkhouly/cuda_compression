@@ -12,10 +12,14 @@
 
 // Prints command list and their descriptions
 void help() {
-    printf("COMMAND\t\t\tDESCRIPTION\n\n");
-    printf("help\t\t\tDisplay all the commands\n");
-    printf("quit\t\t\tExits / terminates the shell with “Bye!”\n");
-    printf("run SCRIPT.TXT\t\tExecutes the file SCRIPT.TXT\n");
+    printf("COMMAND\t\t\t\tDESCRIPTION\n\n");
+    printf("help\t\t\t\tDisplay all the commands\n");
+    printf("rlc in.txt out.txt\t\tCompresses a file using RLC\n");
+    printf("huff in.txt out.txt\t\tCompresses a file using HC\n");
+    printf("lzw in.txt out.txt\t\tCompresses a file using LZW\n");
+    printf("rlc in.txt out.txt\t\tCompresses a file using RLC\n");
+    printf("genfile N\t\t\tCreateas a random file of size N\n");
+    printf("run SCRIPT.TXT\t\t\tExecutes the file SCRIPT.TXT\n");
 }
 
 // Terminates the shell
