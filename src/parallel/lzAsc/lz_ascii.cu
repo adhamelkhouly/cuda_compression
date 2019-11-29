@@ -1,6 +1,11 @@
 #include "lz_ascii.h"
 
+/*
+A device function that writes bits by concatenating bits together
+and writing in increments of bytes (the allowed way on a byte addressable processor)
+*/
 __device__ void write_bits(uint32_t* tmp, int bits, uint16_t code, int max_outsize_per_thread, int* out_len, int* o_bits, uint8_t* out, int segment_num, int fork) {
+	//deciding which variable we are trying to concatenate
 	if (fork == 0) {
 		*tmp = (*tmp << bits) | code;
 	}
@@ -18,6 +23,7 @@ __device__ void write_bits(uint32_t* tmp, int bits, uint16_t code, int max_outsi
 		printf("\nEncoding using more momery than maximum size... Exiting\n");
 		return;
 	}
+	//writing bytes
 	while (*o_bits >= 8) {
 		*o_bits = *o_bits - 8;
 		out[(segment_num * max_outsize_per_thread) + *out_len] = *tmp >> *o_bits;
@@ -27,28 +33,51 @@ __device__ void write_bits(uint32_t* tmp, int bits, uint16_t code, int max_outsi
 }
 
 /****************Cuda Functions on GPU*************************/
-//TODO: maybe change length parameters to size_t
-__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size, int max_bits)
+/*
+A GPU Kernel function that runs LZW compression algorithm in parallel
+Inputs: 
+	Input Array: which will be segmented into NUM_OF_THREADS segments and encodes each one independently
+	Size of Input Array
+	Threads per block
+
+Outputs: 
+	Encoded file: in one output array with with fragmentations in between segments
+		 		  which will be resolved in the populate function
+	Segments lengths: the length of each encoded segment to be used for clear the fragmentations
+*/
+__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size)
 {
-	//__shared__ int seg_length_gpu[NUM_OF_THREADS];
+	//local dictionary per thread 
 	uint16_t next_code = M_NEW;
 	lzw_enc_t* dict = (lzw_enc_t*)malloc(512 * sizeof(lzw_enc_t));
+	
+	/*variables to allow for the segmentation of input and output arrays
+	Basically, making each thread reads at a different segment of the input array
+	and each thread write at a different segment of the output array 
+	(to avoid synchronization which would make it sequential)
+	The output array will have memory fragmentations which will be cleared in a the populate kernel
+	*/
 	int size_per_thread_const = (size + (NUM_OF_THREADS - 1)) / NUM_OF_THREADS;
 	int size_per_thread_change = size_per_thread_const;
 	int segment_num = (threadIdx.x + (blockIdx.x * threads_per_block));
 	uint8_t* segment_input_ptr = &dev_in[segment_num * size_per_thread_const];
+	
+	//TODO: No need for syncthreads (look into all since no dependencies at all)
 	__syncthreads();
 
+	//number of bits used for a pattern
+	//and size of dictionary (number of patters to store before having to reset dictionary)
 	int bits = 9, next_shift = 512;
 	uint16_t code, c, nc;
-	
-	if (max_bits > 15) max_bits = 15;
-	if (max_bits < 9) max_bits = 12;
 
 	int out_len = 0;
 	int o_bits = 0;
 	uint32_t tmp = 0;
 
+	/*
+	For loop to read the current letter and the one after, search if the pattern exists in the dictionary
+	If not, add it. If it does, then take this pattern and add the next letter in the input array for a search of a new pattern
+	*/
 	for (code = *(segment_input_ptr++); --size_per_thread_change; ) {
 		c = *(segment_input_ptr++);
 		if (c == NULL) break;
@@ -61,11 +90,10 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 		}
 		
 		__syncthreads();
+		// when dictionary is full, reset table
 		if (next_code == (next_shift-1)) {
-			/* table clear marker must occur before bit reset table */
 			write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 1);
 
-			//reset dictionary
 			bits = 9;
 			next_shift = 512;
 			next_code = M_NEW;  
@@ -73,24 +101,27 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 		}
 	}
 
-	//write code
+	//write last pattern
 	write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 0);
 
-	//write EOD
+	//write EOD at the end of each segment (for decoding purposes)
 	//if (threadIdx.x == NUM_OF_THREADS-1) {
 	write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 2);
 	//}
 
 
-	//write tmp
+	//write tmp (any leftovers i guess, not very important since won't be decoded anyways)
 	if (tmp) {
-		//write EOD
 		write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 3);
 	}
+	//length of segment, used for writing file
 	segment_lengths[segment_num] = out_len;
 	free(dict);
 }
 
+/*
+Function to stitch the compressed segments together in one array without fragementations to write into a file
+*/
 __global__ void populate(int threads_per_block, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded) {
 	int segment_num = (threadIdx.x + (blockIdx.x * threads_per_block));
 	int size_per_thread_const = (size + (NUM_OF_THREADS - 1)) / NUM_OF_THREADS;
@@ -114,7 +145,6 @@ int main(int argc, char* argv[])
 
 	uint8_t* in = (uint8_t*)_new(unsigned char, st.st_size);
 	read(fd, in, st.st_size);
-	//_setsize(in, st.st_size);
 	close(fd);
 
 	printf("input size: %d\n", _len(in));
@@ -140,6 +170,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 		goto Error;
 	}
 
+	//Mallocing and setting memory
 	cudaStatus = cudaMallocManaged((void**)& dev_in, _len(in) * sizeof(uint8_t));
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMalloc failed!");
@@ -153,6 +184,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 		fprintf(stderr, "cudaMalloc failed!");
 		goto Error;
 	}
+	//TODO: try cudaMemset cleaner
 	//cudaMemset(segment_lengths, 0, (NUM_OF_THREADS + 1)*sizeof(int));
 	for (int i = 0; i < NUM_OF_THREADS; i++) {
 		segment_lengths[i] = 0;
@@ -173,7 +205,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 		threadsPerBlock = ((NUM_OF_THREADS + (numBlocks - 1)) / numBlocks);
 	}
 	/*************************************** Parrallel Part of Execution **********************************************/
-	lz_encode_with_ascii_kernel << <numBlocks, threadsPerBlock >> > (threadsPerBlock, dev_in, segment_lengths, dev_final_out, _len(in), 9);
+	lz_encode_with_ascii_kernel << <numBlocks, threadsPerBlock >> > (threadsPerBlock, dev_in, segment_lengths, dev_final_out, _len(in));
 	/*****************************************************************************************************************/
 	//printf("-- Number of Threads: %d -- Execution Time (ms): %g \n", numOfThreads, gpuTimer.Elapsed());
 	// Check for any errors launching the kernel
@@ -191,6 +223,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 		goto Error;
 	}
 
+	//finding size of final compressed output file
 	int sum = 0;
 	for (int z = 0; z < NUM_OF_THREADS; z++) {
 		sum += segment_lengths[z];
@@ -224,6 +257,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 
 	FILE* encodedFile = fopen("encoded_file.txt", "wb");
 	printf("%d \n %d", sum, segment_lengths[NUM_OF_THREADS - 1]);
+	//to write the last compressed segment only or any segment of choice
 	int writing_pos = 0;
 	for (int z = 0; z < NUM_OF_THREADS-1; z++) {
 		writing_pos += segment_lengths[z];
