@@ -1,2 +1,2 @@
-app: shell.c interpreter.c file_manipulation.c sequential/rlc.c sequential/huffman.c sequential/lzw.c
-	gcc -o app shell.c interpreter.c file_manipulation.c sequential/rlc.c  sequential/huffman.c sequential/lzw.c -I.
+seqcomp: shell.c interpreter.c file_manipulation.c sequential/rlc.c sequential/huffman.c sequential/lzw.c
+	gcc -o seqcomp shell.c interpreter.c file_manipulation.c sequential/rlc.c  sequential/huffman.c sequential/lzw.c -I.

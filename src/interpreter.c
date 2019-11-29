@@ -73,6 +73,14 @@ int interpreter(char *words[]) {
         else
             errCode = 8;
     }
+    else if (strcmp(words[0], "echo") == 0){
+        if (words[1] != NULL) {
+            printf(words[1]);
+            printf("\n");
+        }
+        else
+            errCode = 8;
+    }
     else if (strcmp(words[0], "rlc") == 0){
         if (words[1] != NULL && words[2] != NULL) {
             input_str = read_file(words[1]);
@@ -86,7 +94,7 @@ int interpreter(char *words[]) {
     else if (strcmp(words[0], "huff") == 0){
         if (words[1] != NULL && words[2] != NULL) {
             input_str = read_file(words[1]);
-            h_encoded = huffman(input_str);
+            h_encoded = huffman(input_str, words[2]);
         }
         else
             errCode = 8;
@@ -94,7 +102,7 @@ int interpreter(char *words[]) {
     else if (strcmp(words[0], "lzw") == 0){
         if (words[1] != NULL && words[2] != NULL) {
             errCode = lzw(words[1], words[2]);
-            compare_file_size(words[1], "out_lzw.txt");
+            compare_file_size(words[1], words[2]);
         }
         else
             errCode = 8;

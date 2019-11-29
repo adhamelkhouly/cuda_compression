@@ -1,4 +1,7 @@
 genfile 100
+echo RLC
 rlc alice29.txt out_rlc.txt
+echo HUFFMAN
 huff alice29.txt out_huff.txt
+echo LZW
 lzw alice29.txt out_lzw.txt

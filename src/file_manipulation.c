@@ -40,7 +40,6 @@ int write_file(char *file_name, char* output_str) {
        }    
 	}
 
-	printf("File written successfully!\n");
 	fclose(file_address);		
    }
    else {

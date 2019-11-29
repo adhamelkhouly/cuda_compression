@@ -1,5 +1,3 @@
-#include <stdint.h>
-#include <inttypes.h>
 #include "huffman.h"
 
 typedef struct node_t {
@@ -102,7 +100,7 @@ void decode(const char *s, node t)
 	if (t != n) printf("garbage input\n");
 }
 
-uint8_t* huffman(char* input_str) {
+uint8_t* huffman(char* input_str, char* output_str) {
 	int len = strlen(input_str);
 	long maxSize = len*len;
 	char* dest = (char*)malloc(maxSize * sizeof(char));
@@ -114,7 +112,8 @@ uint8_t* huffman(char* input_str) {
 	printf("Original File Size: %ld Kilobytes\n", len/1000);
 	printf("Compressed File Size: = %ld Kilobytes\n", strlen(dest)/8/1000);
 
-	uint8_t *reps = (char*)malloc(strlen(dest) * sizeof(char));
+	int rep_len = ceil(strlen(dest) / 8);
+	uint8_t *reps = (char*)malloc(rep_len * sizeof(uint8_t));
 	int idx = 0;
 	for(int i = 0; i < strlen(dest); i += 8) {
 		char tmp[8];
@@ -124,5 +123,10 @@ uint8_t* huffman(char* input_str) {
 		reps[idx] = rep;
 		idx++;
 	}
+
+	FILE *file_address;
+	file_address = fopen(output_str, "w");
+	fwrite(reps, 1, rep_len, file_address);
+	fclose(file_address);	
 	return reps;
 }
