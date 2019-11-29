@@ -1,3 +1,4 @@
+#include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -27,7 +28,6 @@
 #define _setsize(m, n)  m = pc_heap_mem_extend(m, n)
 #define _extend(m)  m = pc_heap_mem_extend(m, _len(m) * 2)
 
-
 /*********************** Structs *************************/
 
 /* encode and decode dictionary structures.
@@ -45,7 +45,7 @@ void* pc_heap_mem_extend(void* m, size_t new_n);
 cudaError_t lz_ascii_with_cuda(uint8_t* in);
 
 
-__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, lzw_enc_t* dict, size_t size, int max_bits);
+__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size, int max_bits);
 
 __global__ void populate(int threads_per_block, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded);
 
