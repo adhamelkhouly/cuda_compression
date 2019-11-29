@@ -15,7 +15,7 @@
 #include <time.h>
 
 #define MAX_NUMBER_THREADS_PER_BLOCK 1024
-#define NUM_OF_THREADS 4
+#define NUM_OF_THREADS 64
 
 #define M_CLR 256 /* clear table marker */
 #define M_EOD 257 /* end-of-data marker */
@@ -43,12 +43,12 @@ typedef struct {
 void* pc_heap_mem_alloc(size_t item_size, size_t n_item);
 void* pc_heap_mem_extend(void* m, size_t new_n);
 
-cudaError_t lz_ascii_with_cuda(uint8_t* in, char* compressedFileName, int num_of_threads);
+cudaError_t lz_ascii_with_cuda(uint8_t* in, int num_of_threads);
 
 
-__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size, int max_bits);
+__global__ void lz_encode_with_ascii_kernel(int threads_per_block, int num_of_threads, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size);
 
-__global__ void populate(int threads_per_block, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded);
+__global__ void populate(int threads_per_block, int num_of_threads, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded);
 
 /*******************Helper Functions***************************/
 //Pass in item_size in bytes and how many items to allocate on the heap
