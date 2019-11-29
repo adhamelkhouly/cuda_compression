@@ -1,0 +1,4 @@
+genfile 100
+rlc alice29.txt out_rlc.txt
+huff alice29.txt out_huff.txt
+lzw alice29.txt out_lzw.txt
