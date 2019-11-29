@@ -227,7 +227,7 @@ byte* lzw_decode(byte* in)
 	next_code = M_NEW;
 	next_shift = 512;
 	bits = 9;
-
+	//int flag = 0;
 	for (len = (_len(in)); len;) {
 		////
 		while (n_bits < bits) {
@@ -247,14 +247,18 @@ byte* lzw_decode(byte* in)
 		////
 		if (code == M_EOD) break;
 		if (code == M_CLR) {
+			//flag += 1;
+			/*if (flag == 2) {
+				break;
+			}*/
 			_clear(d);
-			for (j = 0; j < 256; j++) d[j].c = j;
+			for (j = 0; j < 256; j++) d[j].c = j; 
 			next_code = M_NEW;
 			next_shift = 512;
 			bits = 9;
 			continue;
 		}
-
+		//flag = 0;
 		if (code >= next_code) {
 			fprintf(stderr, "Bad sequence\n");
 			_del(out);
