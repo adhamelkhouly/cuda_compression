@@ -39,6 +39,7 @@ typedef struct {
 } lzw_enc_t;
 
 /****************** Function Declarations***********************/
+//TODO: prob delete these two lines
 void* pc_heap_mem_alloc(size_t item_size, size_t n_item);
 void* pc_heap_mem_extend(void* m, size_t new_n);
 
@@ -48,9 +49,6 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in);
 __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size, int max_bits);
 
 __global__ void populate(int threads_per_block, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded);
-
-//__global__ void* gpu_mem_alloc(size_t item_type, size_t n_item);
-//__global__ void* gpu_mem_extend(void* m, size_t new_n);
 
 /*******************Helper Functions***************************/
 //Pass in item_size in bytes and how many items to allocate on the heap
