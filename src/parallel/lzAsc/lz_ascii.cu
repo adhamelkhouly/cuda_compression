@@ -15,7 +15,7 @@ __device__ void write_bits(uint32_t* tmp, int bits, uint16_t code, int max_outsi
 	}
 	*o_bits = *o_bits + bits;
 	if (max_outsize_per_thread <= *out_len) {
-		printf("\nEncoding using more momery in this block ... Exiting\n");
+		printf("\nEncoding using more momery than maximum size... Exiting\n");
 		return;
 	}
 	while (*o_bits >= 8) {
@@ -28,19 +28,16 @@ __device__ void write_bits(uint32_t* tmp, int bits, uint16_t code, int max_outsi
 
 /****************Cuda Functions on GPU*************************/
 //TODO: maybe change length parameters to size_t
-__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, /*lzw_enc_t* dict,*/ size_t size, int max_bits)
+__global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size, int max_bits)
 {
 	//__shared__ int seg_length_gpu[NUM_OF_THREADS];
-	uint16_t next_code;
-	next_code = M_NEW;
+	uint16_t next_code = M_NEW;
 	lzw_enc_t* dict = (lzw_enc_t*)malloc(512 * sizeof(lzw_enc_t));
 	int size_per_thread_const = (size + (NUM_OF_THREADS - 1)) / NUM_OF_THREADS;
 	int size_per_thread_change = size_per_thread_const;
-	__syncthreads();
-	//int size_dict_seg = sizeof(size_t) * 2 + 512 * sizeof(lzw_enc_t);
 	int segment_num = (threadIdx.x + (blockIdx.x * threads_per_block));
-
 	uint8_t* segment_input_ptr = &dev_in[segment_num * size_per_thread_const];
+	__syncthreads();
 
 	int bits = 9, next_shift = 512;
 	uint16_t code, c, nc;
@@ -59,39 +56,20 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 			code = nc;
 		else {
 			write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 0);
-			//atomicAdd_system((dict[code].next[c]), next_code);
-			//next_code++;
-			//atomicAdd_system(nc, dict[code].next[c]);
 			nc = dict[code].next[c] = next_code++;
 			code = c;
 		}
 		
 		__syncthreads();
-		if (next_code == next_shift-1) {
-			
-			/* either reset table back to 9 bits */
-			//if (++bits > max_bits) {
-				/* table clear marker must occur before bit reset */
-				write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 1);
+		if (next_code == (next_shift-1)) {
+			/* table clear marker must occur before bit reset table */
+			write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 1);
 
-				bits = 9;
-				next_shift = 512;
-				__syncthreads();
-				next_code = M_NEW; 
-				memset(dict, 0, sizeof(lzw_enc_t) * 512);
-				__syncthreads();
-			//}
-			//else  /* or extend table */
-			//{
-			//	size_t* x = (size_t*)dict - 2; //go back two size_t's (64 bits in our definition) to get the previously stored item_size and number of items
-			//	size_t* y = (size_t*)(&dict[x[0] * x[1]]);
-			//	//y = (size_t*)malloc(*x * next_shift); //
-			//	next_shift *= 2;
-			//	if (next_shift > x[1]) //if actually more memory is asked for then initialize the extra with zeros till we fill it out in the future
-			//		memset((char*)(x + 2) + x[0] * x[1], 0, x[0] * (next_shift - x[1]));
-			//	x[1] = next_shift;
-			//	dict = (lzw_enc_t*)x + 2;
-			//}
+			//reset dictionary
+			bits = 9;
+			next_shift = 512;
+			next_code = M_NEW;  
+			memset(dict, 0, sizeof(lzw_enc_t) * 512);
 		}
 	}
 
@@ -99,7 +77,7 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 	write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 0);
 
 	//write EOD
-	//if (threadIdx.x == NUM_OF_THREADS) {
+	//if (threadIdx.x == NUM_OF_THREADS-1) {
 	write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 2);
 	//}
 
@@ -110,7 +88,7 @@ __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_
 		write_bits(&tmp, bits, code, size_per_thread_const, &out_len, &o_bits, out, segment_num, 3);
 	}
 	segment_lengths[segment_num] = out_len;
-	//free(y);
+	free(dict);
 }
 
 __global__ void populate(int threads_per_block, size_t size, int* segment_lengths, uint8_t* out, uint8_t* encoded) {
@@ -239,14 +217,18 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in)
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "returned error code %d after launching !\n", cudaStatus);
 		goto Error;
-	}
+	} 
 	
 	end_t = clock();
 	printf("\n time taken: %d \n",((end_t - start_t)));
 
 	FILE* encodedFile = fopen("encoded_file.txt", "wb");
 	printf("%d \n %d", sum, segment_lengths[NUM_OF_THREADS - 1]);
-	fwrite(encoded, sum, 1, encodedFile);
+	int writing_pos = 0;
+	for (int z = 0; z < NUM_OF_THREADS-1; z++) {
+		writing_pos += segment_lengths[z];
+	}
+	fwrite(&encoded[writing_pos], segment_lengths[NUM_OF_THREADS - 1], 1, encodedFile);
 
 Error:
 	// BE FREE MY LOVLIES

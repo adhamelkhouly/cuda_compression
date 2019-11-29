@@ -210,19 +210,17 @@ byte* lzw_encode(byte* in, int max_bits)
 //	tmp &= (1 << n_bits) - 1;
 //}
 
-byte* lzw_decode(byte* in, int* size_decoded)
+byte* lzw_decode(byte* in)
 {
 	byte* out = _new(byte, 4);
 	int out_len = 0;
 	
 	lzw_dec_t* d = _new(lzw_dec_t, 512);
 	int len, j, next_shift = 512, bits = 9, n_bits = 0;
-	ushort code = M_NEW;
-	ushort c, t, next_code = M_NEW;
+	ushort code, c, t, next_code = M_NEW;
 
 	uint32_t tmp = 0;
 	
-	byte* second_in = in;
 	/* in case encoded bits didn't start with M_CLR */
 	_clear(d);
 	for (j = 0; j < 256; j++) d[j].c = j;
@@ -295,7 +293,6 @@ byte* lzw_decode(byte* in, int* size_decoded)
 
 	/* might be ok, so just whine, don't be drastic */
 	if (code != M_EOD) fputs("Bits did not end in EOD\n", stderr);
-	*size_decoded = in - second_in;
 
 	_setsize(out, out_len);
 bail: _del(d);
@@ -333,20 +330,12 @@ int main()
 	/*FILE* encodedFile = fopen("encoded_cfile.txt", "wb");
 	fwrite(enc, _len(enc), 1, encodedFile);*/
 	
-	FILE* decodedFile = fopen("decoded_cfile.txt", "a");
 	//struct stat stout;
-	int input_increment = 0;
-	byte* dec = lzw_decode(in, &input_increment);
-	int size = _len(dec);
-	do
-	{
-		int in_inc = 0;
-		fwrite(dec, _len(dec), 1, decodedFile);
-		printf("decoded size: %d\n", _len(dec));
-		dec = lzw_decode(&in[input_increment], &in_inc);
-		input_increment += in_inc;
-		size += _len(dec);
-	} while (size < 16000);
+	byte* dec = lzw_decode(in);
+	printf("decoded size: %d\n", _len(dec));
+
+	FILE* decodedFile = fopen("decoded_cfile.txt", "wb");
+	fwrite(dec, _len(dec), 1, decodedFile);
 
 	/*for (i = 0; i < _len(dec); i++)
 		if (dec[i] != in[i]) {
