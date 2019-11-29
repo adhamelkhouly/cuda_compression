@@ -43,7 +43,7 @@ typedef struct {
 void* pc_heap_mem_alloc(size_t item_size, size_t n_item);
 void* pc_heap_mem_extend(void* m, size_t new_n);
 
-cudaError_t lz_ascii_with_cuda(uint8_t* in);
+cudaError_t lz_ascii_with_cuda(uint8_t* in, char* compressedFileName, int num_of_threads);
 
 
 __global__ void lz_encode_with_ascii_kernel(int threads_per_block, uint8_t* dev_in, int* segment_lengths, uint8_t* out, size_t size, int max_bits);
