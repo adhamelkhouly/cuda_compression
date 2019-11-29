@@ -279,7 +279,7 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in, int num_of_threads)
 	for (int z = 0; z < num_of_threads - 1; z++) {
 		writing_pos += segment_lengths[z];
 	}
-	fwrite(&encoded[writing_pos], segment_lengths[num_of_threads - 1], 1, encodedFile);
+	fwrite(encoded, sum, 1, encodedFile);
 
 Error:
 	// BE FREE MY LOVLIES
