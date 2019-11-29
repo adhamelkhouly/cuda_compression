@@ -82,8 +82,6 @@ int interpreter(char *words[]) {
         if (words[1] != NULL) {
             input_str = read_file(words[1]);
             h_encoded = huffman(input_str);
-            errCode = write_file(words[2], h_encoded);
-            compare_file_size(words[1], words[2]);
         }
         else
             errCode = 8;
