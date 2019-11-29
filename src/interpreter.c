@@ -7,6 +7,7 @@
 #include "shell.h"
 #include "sequential/rlc.h"
 #include "sequential/huffman.h"
+#include "sequential/lzw.h"
 #include "file_manipulation.h"
 
 // Prints command list and their descriptions
@@ -68,8 +69,8 @@ int interpreter(char *words[]) {
         else
             errCode = 8;
     }
-    else if (strcmp(words[0], "srlc") == 0){
-        if (words[1] != NULL) {
+    else if (strcmp(words[0], "rlc") == 0){
+        if (words[1] != NULL && words[2] != NULL) {
             input_str = read_file(words[1]);
             encoded = rlc(input_str);
             errCode = write_file(words[2], encoded);
@@ -79,9 +80,17 @@ int interpreter(char *words[]) {
             errCode = 8;
     }
     else if (strcmp(words[0], "huff") == 0){
-        if (words[1] != NULL) {
+        if (words[1] != NULL && words[2] != NULL) {
             input_str = read_file(words[1]);
             h_encoded = huffman(input_str);
+        }
+        else
+            errCode = 8;
+    }
+    else if (strcmp(words[0], "lzw") == 0){
+        if (words[1] != NULL && words[2] != NULL) {
+            errCode = lzw(words[1], words[2]);
+            compare_file_size(words[1], "out_lzw.txt");
         }
         else
             errCode = 8;
