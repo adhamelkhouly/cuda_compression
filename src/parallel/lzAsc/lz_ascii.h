@@ -15,7 +15,6 @@
 #include <time.h>
 
 #define MAX_NUMBER_THREADS_PER_BLOCK 1024
-#define NUM_OF_THREADS 64
 
 #define M_CLR 256 /* clear table marker */
 #define M_EOD 257 /* end-of-data marker */
