@@ -139,7 +139,10 @@ int main(int argc, char* argv[])
 
 	if (argc != 3 || argv[1] == NULL || argv[2] == NULL ||
 		argv[1] == "-h" || argv[1] == "--help" || argv[1] == "--h") {
-		printf("lzAsc.exe <Name of Input File to Compress> < # threads to use> \n");
+		printf("lzAsc.exe <Name of Input File to Compress> < # threads to use> \n"
+			"Use at least 128 threads for a 50KB file and at most 350 threads\n"
+			"Use at least 4 threads for a 20KB file and at most 200 threads and so on aprx....\n"
+			"This is to avoid timeout or heap size limitation errors\n");
 		return 0;
 	}
 	else {
