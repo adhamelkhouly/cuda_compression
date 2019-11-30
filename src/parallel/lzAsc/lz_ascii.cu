@@ -273,7 +273,6 @@ cudaError_t lz_ascii_with_cuda(uint8_t* in, int num_of_threads)
 	printf("\n time taken: %d \n", ((end_t - start_t)));
 
 	FILE* encodedFile = fopen("encoded_file.txt", "wb");
-	printf("%d \n %d", sum, segment_lengths[num_of_threads - 1]);
 	//to write the last compressed segment only or any segment of choice
 	int writing_pos = 0;
 	for (int z = 0; z < num_of_threads - 1; z++) {
