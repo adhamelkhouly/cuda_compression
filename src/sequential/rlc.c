@@ -1,3 +1,8 @@
+/*
+ * This code is derived from geeksforgeeks.org for benchmarkig purposes
+ * https://www.geeksforgeeks.org/run-length-encoding/
+ */
+
 #include "rlc.h"
 
 char* rlc(char* input_str)

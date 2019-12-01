@@ -1,3 +1,8 @@
+/*
+ * This code is derived from rosettacode.org for benchmarkig purposes
+ * https://rosettacode.org/wiki/Huffman_coding#C
+ */
+
 #include "huffman.h"
 
 typedef struct node_t {
